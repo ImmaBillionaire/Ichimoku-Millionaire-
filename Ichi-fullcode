@@ -1,0 +1,1182 @@
+//@version=5
+indicator("Ichimoku Cloud Laboratory [DAFE]", shorttitle="☁️Ichi-Lab", overlay=true, max_bars_back=5000, max_lines_count=500, max_labels_count=100)
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║     ██╗ ██████╗██╗  ██╗██╗███╗   ███╗ ██████╗ ██╗  ██╗██╗   ██╗            ║
+// ║     ██║██╔════╝██║  ██║██║████╗ ████║██╔═══██╗██║ ██╔╝██║   ██║            ║
+// ║     ██║██║     ███████║██║██╔████╔██║██║   ██║█████╔╝ ██║   ██║            ║
+// ║     ██║██║     ██╔══██║██║██║╚██╔╝██║██║   ██║██╔═██╗ ██║   ██║            ║
+// ║     ██║╚██████╗██║  ██║██║██║ ╚═╝ ██║╚██████╔╝██║  ██╗╚██████╔╝            ║
+// ║     ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝             ║
+// ║                           ██╗      █████╗ ██████╗                          ║
+// ║                           ██║     ██╔══██╗██╔══██╗                         ║
+// ║                           ██║     ███████║██████╔╝                         ║
+// ║                           ██║     ██╔══██║██╔══██╗                         ║
+// ║                           ███████╗██║  ██║██████╔╝                         ║
+// ║                           ╚══════╝╚═╝  ╚═╝╚═════╝                          ║
+// ║              ⚡ Dskyz (DAFE) Trading Systems ⚡                           ║
+// ║             ICHIMOKU LABORATORY: 50+ CLOUD ENGINES                         ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+// ℹ️ TOOLTIP DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+var string TT_MODE   = "🎯 CLOUD SYSTEM ARCHITECTURE\n\nSelects the visual and functional complexity:\n\n• Full Ichimoku: All 5 lines (Tenkan, Kijun, Senkou A/B, Chikou).\n• Kumo Only: Focuses purely on Support/Resistance zones.\n• Multi-Cloud: Stacks multiple timeframes of clouds for deep trend analysis (like a heatmap)."
+var string TT_PRESET = "⏱️ PERIOD TUNING\n\nOptimized settings for different assets:\n\n• Traditional (9/26/52): Best for Stocks/Forex (5-day weeks).\n• Crypto Fast (7/22/44): Tuned for 24/7 markets.\n• Scalping (5/13/26): For 1m/5m charts."
+var string TT_ENGINE = "⚙️ CALCULATION ENGINE (THE BRAIN)\n\nReplaces the standard 'Donchian Channel' math (High+Low)/2 with advanced algorithms:\n\n• CLASSICAL: Uses Moving Averages (Hull, EMA) for smoother lines.\n• ADAPTIVE: Adjusts speed based on Volatility or Entropy.\n• DAFE PROPRIETARY: Physics-based engines (Flux, Gravity, Quantum) exclusive to this lab."
+var string TT_DAFE   = "⚡ DAFE ENGINES EXPLAINED\n\n• Flux Reactor: Expands/contracts based on Bollinger Band width.\n• Tensor Cloud: 4-dimensional averaging (Open/High/Low/Close).\n• Quantum Step: Only moves when price exceeds ATR threshold (reduces noise).\n• Gravity Well: Volume-weighted pull."
+var string TT_SIG    = "⚡ SIGNAL LOGIC\n\n• TK Cross: Classic Tenkan/Kijun crossover.\n• Kumo Breakout: Price piercing the cloud.\n• Perfect Order: Price > Cloud > Tenkan > Kijun (Strongest Trend).\n• Cloud Twist: Predicts future reversals."
+var string TT_FILT   = "🔬 FILTER MODULE\n\nRemoves bad signals:\n\n• Volume: Requires relative volume spike.\n• ADX: Requires strong trend strength (>25).\n• Time: Enforces a cooldown period between signals."
+// ═══════════════════════════════════════════════════════════════════════════════
+// INPUT GROUPS
+// ═══════════════════════════════════════════════════════════════════════════════
+var G_MODE    = "╔═══════════ 🎯 MODE ═══════════╗"
+var G_PERIOD  = "╔═══════════ ⏱️ PERIODS ═══════════╗"
+var G_ENGINE  = "╔═══════════ ⚙️ ENGINE ═══════════╗"
+var G_VISUAL  = "╔═══════════ 🎨 VISUAL ═══════════╗"
+var G_CLOUD   = "╔═══════════ ☁️ CLOUD ═══════════╗"
+var G_SIGNALS = "╔═══════════ ⚡ SIGNALS ═══════════╗"
+var G_FILTERS = "╔═══════════ 🔬 FILTERS ═══════════╗"
+var G_PERF    = "╔═══════ 📊 PERFORMANCE ═══════════╗"
+var G_DASH    = "╔═══════════ 📋 DASHBOARD ═══════════╗"
+i_mode = input.string("Full Ichimoku", "Cloud System", 
+     options=["Full Ichimoku", "Kumo Only", "TK Lines Only", "Multi-Cloud (2 Layers)", "Multi-Cloud (3 Layers)", "Minimal"], group=G_MODE, tooltip=TT_MODE)
+i_period_preset = input.string("Traditional (9/26/52)", "Period Preset",
+     options=["Traditional (9/26/52)", "Crypto Fast (7/22/44)", "Crypto Aggressive (6/18/36)", 
+              "Forex (8/24/48)", "Weekly (13/39/78)", "Scalping (5/13/26)", "Custom"], group=G_PERIOD, tooltip=TT_PRESET)
+i_tenkan = i_period_preset == "Custom" ? input.int(9, "Tenkan", minval=1, maxval=200, group=G_PERIOD) : 
+     i_period_preset == "Crypto Fast" ? 7 : i_period_preset == "Crypto Aggressive" ? 6 :
+     i_period_preset == "Forex (8/24/48)" ? 8 : i_period_preset == "Weekly (13/39/78)" ? 13 :
+     i_period_preset == "Scalping (5/13/26)" ? 5 : 9
+i_kijun = i_period_preset == "Custom" ? input.int(26, "Kijun", minval=1, maxval=500, group=G_PERIOD) : 
+     i_period_preset == "Crypto Fast" ? 22 : i_period_preset == "Crypto Aggressive" ? 18 :
+     i_period_preset == "Forex (8/24/48)" ? 24 : i_period_preset == "Weekly (13/39/78)" ? 39 :
+     i_period_preset == "Scalping (5/13/26)" ? 13 : 26
+i_senkou = i_period_preset == "Custom" ? input.int(52, "Senkou B", minval=1, maxval=1000, group=G_PERIOD) : 
+     i_period_preset == "Crypto Fast" ? 44 : i_period_preset == "Crypto Aggressive" ? 36 :
+     i_period_preset == "Forex (8/24/48)" ? 48 : i_period_preset == "Weekly (13/39/78)" ? 78 :
+     i_period_preset == "Scalping (5/13/26)" ? 26 : 52
+i_displacement = input.int(26, "Displacement", minval=1, maxval=200, group=G_PERIOD, tooltip="Shifts the cloud forward to project future support/resistance.")
+i_engine = input.string("Standard Donchian", "Calculation Method",
+     options=[
+         "Standard Donchian",
+         "─── CLASSICAL ───",
+         "Hull Moving Average", "Zero-Lag EMA", "KAMA (Kaufman)", "VIDYA", "FRAMA", 
+         "McGinley Dynamic", "T3 Tillson", "DEMA", "TEMA", "ZLEMA Enhanced", "ALMA",
+         "─── DSP FILTERS ───",
+         "SuperSmoother", "Butterworth 2-Pole", "Kalman Filter", "Gaussian Filter",
+         "Laguerre Filter", "Adaptive Laguerre", "Savitzky-Golay", 
+         "Hamming Window", "Hann Window", "Blackman Window",
+         "─── STATISTICAL ───",
+         "LSMA", "Polynomial Regression", "Median Filter", "Trimmed Mean",
+         "Geometric Mean", "Harmonic Mean", "Quadratic Weighted", "Cubic Weighted",
+         "─── VOLUME ───",
+         "VWMA", "VWAP", "Money Flow Weighted", "Tick Volume Weighted", "Accumulation/Distribution",
+         "─── ADAPTIVE ───",
+         "ATR-Scaled", "Volatility-Modulated", "Efficiency Ratio", "Shannon Entropy",
+         "Fractal Dimension", "Cycle Period", "RSI-Modulated", "MACD-Modulated",
+         "Stochastic-Modulated", "ADX-Modulated",
+         "─── DAFE PROPRIETARY ───",
+         "DAFE Flux Reactor", "DAFE Tensor Cloud", "DAFE Quantum Step",
+         "DAFE Spectral Filter", "DAFE Gravity Well", "DAFE Phase-Zero",
+         "DAFE Entropy Engine", "DAFE Fractal Engine", "DAFE Neural Proxy",
+         "DAFE Hybrid Neuro", "DAFE Kalman Predictive", "DAFE Consensus", "DAFE Ultimate Fusion"
+     ], group=G_ENGINE, tooltip=TT_ENGINE + "\n\n" + TT_DAFE)
+i_alma_offset = input.float(0.85, "ALMA Offset", minval=0, maxval=1, step=0.05, group=G_ENGINE)
+i_alma_sigma = input.float(6, "ALMA Sigma", minval=1, maxval=20, step=0.5, group=G_ENGINE)
+i_laguerre_gamma = input.float(0.5, "Laguerre Gamma", minval=0.1, maxval=0.9, step=0.05, group=G_ENGINE)
+i_tenkan_show = input.bool(true, "Show Tenkan", group=G_VISUAL, inline="tk")
+i_kijun_show = input.bool(true, "Show Kijun", group=G_VISUAL, inline="tk")
+i_chikou_show = input.bool(true, "Show Chikou", group=G_VISUAL)
+i_tenkan_color = input.color(#00E5FF, "Tenkan", group=G_VISUAL, inline="col")
+i_kijun_color = input.color(#FF1744, "Kijun", group=G_VISUAL, inline="col")
+i_chikou_color = input.color(color.new(#9C27B0, 50), "Chikou", group=G_VISUAL, inline="col")
+i_line_width = input.int(2, "Line Width", minval=1, maxval=5, group=G_VISUAL)
+i_glow_effect = input.bool(true, "✨ Glow Effect", group=G_VISUAL)
+i_cloud_style = input.string("Gradient Fill", "☁️ Cloud Style",
+     options=["Solid Fill", "Gradient Fill", "Outline Only", "None"], 
+     group=G_CLOUD,
+     tooltip="SOLID: Single-color fill\nGRADIENT: 3-layer depth effect\nOUTLINE: Edge lines only\nNONE: Hide cloud")
+i_bull_cloud = input.color(color.new(#26A69A, 85), "Bull Cloud", group=G_CLOUD, inline="cld")
+i_bear_cloud = input.color(color.new(#EF5350, 85), "Bear Cloud", group=G_CLOUD, inline="cld")
+i_cloud_brightness = input.int(85, "Transparency", minval=50, maxval=95, group=G_CLOUD)
+i_second_cloud_mult = input.float(2.0, "2nd Cloud Multiplier", minval=1.5, maxval=5, step=0.5, group=G_CLOUD, tooltip="Multiplier for the 2nd layer in Multi-Cloud mode.")
+i_third_cloud_mult = input.float(3.0, "3rd Cloud Multiplier", minval=2, maxval=10, step=0.5, group=G_CLOUD)
+i_signal_mode = input.string("TK Cross", "Signal Logic",
+     options=["TK Cross", "Price x Kijun", "Kumo Breakout", "TK + Kumo", "Perfect Order", "Chikou Confirm", "Triple Confirm", "Cloud Twist"],
+     group=G_SIGNALS, tooltip=TT_SIG)
+i_show_signals = input.bool(true, "Show Labels", group=G_SIGNALS, inline="sig")
+i_show_zones = input.bool(true, "Show Zones", group=G_SIGNALS, inline="sig")
+i_enable_filters = input.bool(false, "🔬 Enable Filters", group=G_FILTERS, tooltip=TT_FILT)
+i_filter_volume = input.bool(false, "📦 Volume", group=G_FILTERS, inline="vol")
+i_vol_threshold = input.float(1.2, "×", minval=1, maxval=5, step=0.1, group=G_FILTERS, inline="vol")
+i_filter_atr = input.bool(false, "🌊 ATR", group=G_FILTERS, inline="atr")
+i_atr_min = input.float(0.5, "Min", minval=0.1, maxval=5, step=0.1, group=G_FILTERS, inline="atr")
+i_filter_adx = input.bool(false, "💪 ADX", group=G_FILTERS, inline="adx")
+i_adx_threshold = input.int(25, ">", minval=10, maxval=50, group=G_FILTERS, inline="adx")
+i_filter_time = input.int(0, "⏰ Min Bars", minval=0, maxval=50, group=G_FILTERS)
+i_perf_enable = input.bool(false, "📊 Track Performance", group=G_PERF)
+i_capital = input.float(10000, "Capital", minval=100, group=G_PERF)
+i_position_size = input.float(10, "Position %", minval=1, maxval=100, group=G_PERF)
+i_commission = input.float(0.04, "Commission %", minval=0, maxval=1, step=0.01, group=G_PERF)
+i_atr_period = input.int(14, "ATR Period", minval=5, maxval=50, group=G_PERF)
+i_sl_atr_mult = input.float(1.5, "Stop Loss (ATR ×)", minval=0.5, maxval=5, step=0.1, group=G_PERF,
+     tooltip="Stop loss distance as ATR multiplier\n1.5 = 1.5 × ATR from entry")
+i_tp1_atr_mult = input.float(1.0, "TP1 (ATR ×)", minval=0.5, maxval=5, step=0.1, group=G_PERF,
+     tooltip="First take profit target")
+i_tp2_atr_mult = input.float(2.0, "TP2 (ATR ×)", minval=1.0, maxval=10, step=0.1, group=G_PERF,
+     tooltip="Second take profit target")
+i_tp3_atr_mult = input.float(3.0, "TP3 (ATR ×)", minval=1.5, maxval=15, step=0.1, group=G_PERF,
+     tooltip="Third take profit target")
+i_show_sl_tp = input.bool(true, "Show SL/TP Lines", group=G_PERF)
+i_dash_enable = input.bool(true, "📋 Show Dashboard", group=G_DASH, inline="dash")
+i_dash_size = input.string("Small", "Size", options=["Tiny", "Small", "Normal"], group=G_DASH, inline="dash")
+i_dash_position = input.string("Top Right", "Position", 
+     options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group=G_DASH)
+// ═══════════════════════════════════════════════════════════════════════════════
+// CALCULATION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+type TradeStats
+    int trades = 0
+    int wins = 0
+    int losses = 0
+    float total_pnl = 0.0
+    float win_pnl = 0.0
+    float loss_pnl = 0.0
+    float max_dd = 0.0
+    float peak_equity = 0.0
+    float current_equity = 0.0
+    bool in_trade = false
+    int direction = 0
+    float entry_price = 0.0
+    float sl_price = 0.0
+    float tp1_price = 0.0
+    float tp2_price = 0.0
+    float tp3_price = 0.0
+    bool tp1_hit = false
+    bool tp2_hit = false
+    bool tp3_hit = false
+    int tp1_count = 0
+    int tp2_count = 0
+    int tp3_count = 0
+    float entry_atr = 0.0
+f_donchian(len) => (ta.highest(high, len) + ta.lowest(low, len)) / 2
+f_hull(src, len) =>
+    half_len = math.max(1, int(len / 2))
+    sqrt_len = math.max(1, int(math.sqrt(len)))
+    ta.wma(2 * ta.wma(src, half_len) - ta.wma(src, len), sqrt_len)
+f_zlema(src, len) =>
+    lag = int((len - 1) / 2)
+    ta.ema(src + (src - nz(src[lag])), len)
+f_kama(src, len) =>
+    change = math.abs(src - src[len])
+    volatility = math.sum(math.abs(src - src[1]), len)
+    er = volatility != 0 ? change / volatility : 0
+    fast_sc = 2.0 / 3
+    slow_sc = 2.0 / 31
+    sc = math.pow(er * (fast_sc - slow_sc) + slow_sc, 2)
+    var float kama = na
+    kama := na(kama) ? src : kama + sc * (src - kama)
+    kama
+f_vidya(src, len) =>
+    cmo = ta.cmo(src, len)
+    alpha = 2 / (len + 1)
+    abs_cmo = math.abs(cmo) / 100
+    var float vidya = na
+    vidya := na(vidya) ? src : alpha * abs_cmo * src + (1 - alpha * abs_cmo) * nz(vidya[1])
+    vidya
+f_frama(src, len) =>
+    half_len = math.max(1, int(len / 2))
+    n3 = (ta.highest(high, len) - ta.lowest(low, len)) / len
+    n1 = (ta.highest(high, half_len) - ta.lowest(low, half_len)) / half_len
+    n2 = (ta.highest(high[half_len], half_len) - ta.lowest(low[half_len], half_len)) / half_len
+    dimen = n3 > 0 and n1 + n2 > 0 ? (math.log(n1 + n2) - math.log(n3)) / math.log(2) : 1.5
+    alpha = math.exp(-4.6 * (dimen - 1))
+    alpha := math.max(0.01, math.min(1, alpha))
+    var float frama = na
+    frama := na(frama) ? src : alpha * src + (1 - alpha) * nz(frama[1])
+    frama
+f_mcginley(src, len) =>
+    var float md = na
+    md := na(md) ? src : md + (src - md) / (len * math.pow(src / md, 4))
+    md
+f_t3(src, len) =>
+    vf = 0.7
+    e1 = ta.ema(src, len)
+    e2 = ta.ema(e1, len)
+    e3 = ta.ema(e2, len)
+    e4 = ta.ema(e3, len)
+    e5 = ta.ema(e4, len)
+    e6 = ta.ema(e5, len)
+    c1 = -vf * vf * vf
+    c2 = 3 * vf * vf + 3 * vf * vf * vf
+    c3 = -6 * vf * vf - 3 * vf - 3 * vf * vf * vf
+    c4 = 1 + 3 * vf + vf * vf * vf + 3 * vf * vf
+    c1 * e6 + c2 * e5 + c3 * e4 + c4 * e3
+f_dema(src, len) =>
+    e1 = ta.ema(src, len)
+    e2 = ta.ema(e1, len)
+    2 * e1 - e2
+f_tema(src, len) =>
+    e1 = ta.ema(src, len)
+    e2 = ta.ema(e1, len)
+    e3 = ta.ema(e2, len)
+    3 * e1 - 3 * e2 + e3
+f_zlema_enhanced(src, len) =>
+    lag = int((len - 1) / 2)
+    data = src + (src - nz(src[lag]))
+    f_tema(data, len)
+f_supersmoother(src, len) =>
+    sqrt2 = math.sqrt(2)
+    pi = math.pi
+    a1 = math.exp(-sqrt2 * pi / len)
+    b1 = 2 * a1 * math.cos(sqrt2 * pi / len)
+    c2 = b1
+    c3 = -a1 * a1
+    c1 = 1 - c2 - c3
+    var float ss = na
+    ss := na(ss[2]) ? src : c1 * (src + nz(src[1])) / 2 + c2 * nz(ss[1]) + c3 * nz(ss[2])
+    ss
+f_butterworth(src, len) =>
+    sqrt2 = math.sqrt(2)
+    pi = math.pi
+    a = math.exp(-sqrt2 * pi / len)
+    b = 2 * a * math.cos(sqrt2 * pi / len)
+    c2 = b
+    c3 = -a * a
+    c1 = (1 - b + a * a) / 4
+    var float bw = na
+    bw := na(bw[2]) ? src : c1 * (src + 2 * nz(src[1]) + nz(src[2])) + c2 * nz(bw[1]) + c3 * nz(bw[2])
+    bw
+f_kalman(src, gain) =>
+    var float k_est = na
+    var float k_err = 1.0
+    q = 0.001
+    r = 0.01 * gain
+    if na(k_est)
+        k_est := src
+    k_err := k_err + q
+    k_gain = k_err / (k_err + r)
+    k_est := k_est + k_gain * (src - k_est)
+    k_err := (1 - k_gain) * k_err
+    k_est
+f_gaussian(src, len) =>
+    pi = math.pi
+    beta = 2.415 * (1 - math.cos(2 * pi / len)) / (1 + math.cos(2 * pi / len))
+    alpha = -beta + math.sqrt(beta * beta + 2 * beta)
+    var float g = na
+    g := na(g) ? src : alpha * src + (1 - alpha) * nz(g[1])
+    g
+f_laguerre(src, gamma) =>
+    var float L0 = na, var float L1 = na, var float L2 = na, var float L3 = na
+    L0 := (1 - gamma) * src + gamma * nz(L0[1])
+    L1 := -gamma * L0 + nz(L0[1]) + gamma * nz(L1[1])
+    L2 := -gamma * L1 + nz(L1[1]) + gamma * nz(L2[1])
+    L3 := -gamma * L2 + nz(L2[1]) + gamma * nz(L3[1])
+    (L0 + 2 * L1 + 2 * L2 + L3) / 6
+f_adaptive_laguerre(src, len) =>
+    vol_ratio = ta.atr(14) / ta.sma(ta.atr(14), 50)
+    gamma = math.min(0.9, math.max(0.1, 0.5 / vol_ratio))
+    f_laguerre(src, gamma)
+f_savitzky_golay(src, len) =>
+    sum_val = 0.0
+    sum_w = 0.0
+    for i = 0 to len - 1
+        w = (len - i) * (len - i)
+        sum_val += nz(src[i]) * w
+        sum_w += w
+    sum_w > 0 ? sum_val / sum_w : src
+f_hamming(src, len) =>
+    sum_w = 0.0
+    sum_val = 0.0
+    for i = 0 to len - 1
+        w = 0.54 - 0.46 * math.cos(2 * math.pi * i / (len - 1))
+        sum_w += w
+        sum_val += w * nz(src[i])
+    sum_w > 0 ? sum_val / sum_w : src
+f_hann(src, len) =>
+    sum_w = 0.0
+    sum_val = 0.0
+    for i = 0 to len - 1
+        w = 0.5 * (1 - math.cos(2 * math.pi * i / (len - 1)))
+        sum_w += w
+        sum_val += w * nz(src[i])
+    sum_w > 0 ? sum_val / sum_w : src
+f_blackman(src, len) =>
+    sum_w = 0.0
+    sum_val = 0.0
+    for i = 0 to len - 1
+        w = 0.42 - 0.5 * math.cos(2 * math.pi * i / (len - 1)) + 0.08 * math.cos(4 * math.pi * i / (len - 1))
+        sum_w += w
+        sum_val += w * nz(src[i])
+    sum_w > 0 ? sum_val / sum_w : src
+f_lsma(src, len) => ta.linreg(src, len, 0)
+f_poly_reg(src, len) =>
+    lsma = ta.linreg(src, len, 0)
+    slope = (lsma - lsma[1])
+    lsma + slope * len / 4
+f_median(src, len) => ta.median(src, len)
+f_trimmed_mean(src, len) =>
+    p90 = ta.percentile_linear_interpolation(src, len, 90)
+    p10 = ta.percentile_linear_interpolation(src, len, 10)
+    ta.sma(math.min(p90, math.max(p10, src)), len)
+f_geometric_mean(src, len) =>
+    product = 1.0
+    for i = 0 to len - 1
+        product *= math.max(nz(src[i]), 0.0001)
+    math.pow(product, 1.0 / len)
+f_harmonic_mean(src, len) =>
+    sum_inv = 0.0
+    for i = 0 to len - 1
+        sum_inv += 1.0 / math.max(nz(src[i]), 0.0001)
+    len / sum_inv
+f_quadratic(src, len) =>
+    sum_val = 0.0
+    sum_w = 0.0
+    for i = 0 to len - 1
+        w = math.pow(len - i, 2)
+        sum_val += nz(src[i]) * w
+        sum_w += w
+    sum_w > 0 ? sum_val / sum_w : src
+f_cubic(src, len) =>
+    sum_val = 0.0
+    sum_w = 0.0
+    for i = 0 to len - 1
+        w = math.pow(len - i, 3)
+        sum_val += nz(src[i]) * w
+        sum_w += w
+    sum_w > 0 ? sum_val / sum_w : src
+f_vwap(len) =>
+    sum_pv = 0.0
+    sum_v = 0.0
+    for i = 0 to len - 1
+        sum_pv += nz(close[i] * volume[i])
+        sum_v += nz(volume[i])
+    sum_v > 0 ? sum_pv / sum_v : close
+f_money_flow(src, len) =>
+    typical = (high + low + close) / 3
+    mf = typical * volume
+    sum_mf = math.sum(mf, len)
+    sum_v = math.sum(volume, len)
+    sum_v > 0 ? sum_mf / sum_v : src
+f_tick_volume(src, len) =>
+    tv = volume
+    sum_val = 0.0
+    sum_vol = 0.0
+    for i = 0 to len - 1
+        sum_val += nz(src[i]) * nz(tv[i])
+        sum_vol += nz(tv[i])
+    sum_vol > 0 ? sum_val / sum_vol : src
+f_accumulation_dist(src, len) =>
+    ad = ((close - low) - (high - close)) / (high - low) * volume
+    cum_ad = ta.cum(ad)
+    ta.sma(cum_ad, len)
+f_atr_adaptive(src, len) =>
+    atr = ta.atr(len)
+    atr_avg = ta.sma(atr, len)
+    ratio = atr_avg > 0 ? atr / atr_avg : 1.0
+    base_alpha = 2.0 / (len + 1)
+    adaptive_alpha = math.min(0.5, math.max(0.01, base_alpha * ratio))
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_volatility_modulated(src, len) =>
+    std = ta.stdev(src, len)
+    avg_std = ta.sma(std, len)
+    ratio = avg_std > 0 ? std / avg_std : 1.0
+    base_alpha = 2.0 / (len + 1)
+    adaptive_alpha = math.min(0.5, math.max(0.01, base_alpha / ratio))
+    var float vm = na
+    vm := na(vm) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(vm[1])
+    vm
+f_efficiency_ratio(src, len) =>
+    change = math.abs(src - src[len])
+    volatility = math.sum(math.abs(src - src[1]), len)
+    er = volatility != 0 ? change / volatility : 0.0
+    fast_alpha = 2.0 / 3.0
+    slow_alpha = 2.0 / 31.0
+    adaptive_alpha = math.pow(er * (fast_alpha - slow_alpha) + slow_alpha, 2)
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_entropy_adaptive(src, len) =>
+    sum_changes = 0.0
+    for i = 1 to len
+        sum_changes += math.abs(src[i] - src[i - 1])
+    entropy = sum_changes / len
+    avg_entropy = ta.sma(entropy, len)
+    ratio = avg_entropy > 0 ? entropy / avg_entropy : 1.0
+    base_alpha = 2.0 / (len + 1)
+    adaptive_alpha = math.min(0.5, math.max(0.01, base_alpha / ratio))
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_fractal_adaptive(src, len) =>
+    n = len
+    n1 = (ta.highest(high, n) - ta.lowest(low, n)) / n
+    half = int(n / 2)
+    n2 = (ta.highest(high, half) - ta.lowest(low, half)) / half
+    n3 = (ta.highest(high[half], half) - ta.lowest(low[half], half)) / half
+    dimen = n1 > 0 and n2 + n3 > 0 ? (math.log(n2 + n3) - math.log(n1)) / math.log(2) : 1.5
+    alpha = math.exp(-4.6 * (dimen - 1))
+    alpha := math.max(0.01, math.min(0.99, alpha))
+    var float fd = na
+    fd := na(fd) ? src : alpha * src + (1 - alpha) * nz(fd[1])
+    fd
+f_cycle_period(src, len) => ta.ema(src, len)
+f_rsi_modulated(src, len) =>
+    rsi = ta.rsi(close, 14)
+    base_alpha = 2.0 / (len + 1)
+    mod = rsi > 70 or rsi < 30 ? 2.0 : 1.0
+    adaptive_alpha = math.min(0.5, base_alpha * mod)
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_macd_modulated(src, len) =>
+    [macd_line, signal_line, _] = ta.macd(close, 12, 26, 9)
+    diff = math.abs(macd_line - signal_line)
+    base_alpha = 2.0 / (len + 1)
+    mod = diff > 1 ? 1.5 : 1.0
+    adaptive_alpha = math.min(0.5, base_alpha * mod)
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_stoch_modulated(src, len) =>
+    k = ta.stoch(close, high, low, 14)
+    base_alpha = 2.0 / (len + 1)
+    mod = k > 80 or k < 20 ? 1.8 : 1.0
+    adaptive_alpha = math.min(0.5, base_alpha * mod)
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_adx_modulated(src, len) =>
+    [_, _, adx] = ta.dmi(14, 14)
+    base_alpha = 2.0 / (len + 1)
+    mod = adx < 25 ? 0.5 : adx > 40 ? 1.5 : 1.0
+    adaptive_alpha = math.min(0.5, math.max(0.01, base_alpha * mod))
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_dafe_flux(src, len) =>
+    bb_width = ta.stdev(src, len)
+    bb_avg = ta.sma(bb_width, len)
+    flux_ratio = bb_avg > 0 ? bb_width / bb_avg : 1
+    sigmoid = 1 / (1 + math.exp(-flux_ratio + 1))
+    alpha = 2 / (len + 1) * (1 + sigmoid)
+    alpha := math.min(0.99, alpha)
+    var float flux = na
+    flux := na(flux) ? src : alpha * src + (1 - alpha) * nz(flux[1])
+    flux
+f_dafe_tensor(len) =>
+    tensor_src = (open + 2 * high + 2 * low + 3 * close) / 8
+    f_hull(tensor_src, len)
+f_dafe_quantum(src, len) =>
+    step_size = ta.atr(len) * 0.5
+    var float quantum = na
+    quantum := na(quantum) ? src : math.abs(src - quantum) > step_size ? src : quantum
+    ta.ema(quantum, math.max(2, int(len / 4)))
+f_dafe_spectral(src, len) =>
+    lp = ta.ema(src, len)
+    hp = src - lp
+    lp + hp * 0.1
+f_dafe_gravity(src, len) =>
+    sum_weighted = 0.0
+    sum_weights = 0.0
+    for i = 0 to len - 1
+        weight = (len - i) * (nz(volume[i]) + 1)
+        sum_weighted += nz(src[i]) * weight
+        sum_weights += weight
+    sum_weights > 0 ? sum_weighted / sum_weights : src
+f_dafe_phase_zero(src, len) =>
+    ema1 = ta.ema(src, len)
+    ema2 = ta.ema(ema1, len)
+    ema1 + (ema1 - ema2)
+f_dafe_entropy(src, len) =>
+    sum_changes = 0.0
+    for i = 1 to len
+        sum_changes += math.abs(src[i] - src[i - 1])
+    entropy = sum_changes / len
+    avg_entropy = ta.sma(entropy, len)
+    ratio = avg_entropy > 0 ? entropy / avg_entropy : 1.0
+    base_alpha = 2.0 / (len + 1)
+    adaptive_alpha = math.min(0.5, math.max(0.01, base_alpha / ratio))
+    var float result = na
+    result := na(result) ? src : adaptive_alpha * src + (1 - adaptive_alpha) * nz(result[1])
+    result
+f_dafe_fractal(src, len) => f_fractal_adaptive(src, len)
+f_dafe_neural(src, len) =>
+    var float jma = 0.0
+    var float e0 = 0.0, var float e1 = 0.0
+    beta = 0.45
+    alpha = math.pow(len, beta)
+    e0 := (1 - 1/alpha) * src + (1/alpha) * nz(e0[1])
+    e1 := (src - e0) * (1 - 1/alpha) + (1/alpha) * nz(e1[1])
+    jma := e0
+    jma
+f_dafe_hybrid_neuro(src, len) =>
+    hull = f_hull(src, len)
+    f_kalman(hull, 1.0)
+f_dafe_kalman_predictive(src, len) =>
+    k1 = f_kalman(src, 1.0)
+    f_kalman(k1, 0.5)
+f_dafe_consensus(src, len) =>
+    m1 = f_donchian(len)
+    m2 = f_hull(src, len)
+    m3 = f_kama(src, len)
+    m4 = ta.ema(src, len)
+    m5 = f_lsma(src, len)
+    (m1 + m2 + m3 + m4 + m5) / 5
+f_dafe_ultimate(src, len) =>
+    w1 = f_dafe_flux(src, len)
+    w2 = f_dafe_tensor(len)
+    w3 = f_dafe_spectral(src, len)
+    w4 = f_dafe_gravity(src, len)
+    w5 = f_dafe_phase_zero(src, len)
+    (w1 * 0.25 + w2 * 0.25 + w3 * 0.2 + w4 * 0.15 + w5 * 0.15)
+// ═══════════════════════════════════════════════════════════════════════════════
+// MASTER CALCULATION ROUTER
+// ═══════════════════════════════════════════════════════════════════════════════
+calc_line(len, engine) =>
+    float result = na
+    src = close
+    if engine == "Standard Donchian"
+        result := f_donchian(len)
+    else if engine == "Hull Moving Average"
+        result := f_hull(src, len)
+    else if engine == "Zero-Lag EMA"
+        result := f_zlema(src, len)
+    else if engine == "KAMA (Kaufman)"
+        result := f_kama(src, len)
+    else if engine == "VIDYA"
+        result := f_vidya(src, len)
+    else if engine == "FRAMA"
+        result := f_frama(src, len)
+    else if engine == "McGinley Dynamic"
+        result := f_mcginley(src, len)
+    else if engine == "T3 Tillson"
+        result := f_t3(src, len)
+    else if engine == "DEMA"
+        result := f_dema(src, len)
+    else if engine == "TEMA"
+        result := f_tema(src, len)
+    else if engine == "ZLEMA Enhanced"
+        result := f_zlema_enhanced(src, len)
+    else if engine == "ALMA"
+        result := ta.alma(src, len, i_alma_offset, i_alma_sigma)
+    else if engine == "SuperSmoother"
+        result := f_supersmoother(src, len)
+    else if engine == "Butterworth 2-Pole"
+        result := f_butterworth(src, len)
+    else if engine == "Kalman Filter"
+        result := f_kalman(src, 1.0)
+    else if engine == "Gaussian Filter"
+        result := f_gaussian(src, len)
+    else if engine == "Laguerre Filter"
+        result := f_laguerre(src, i_laguerre_gamma)
+    else if engine == "Adaptive Laguerre"
+        result := f_adaptive_laguerre(src, len)
+    else if engine == "Savitzky-Golay"
+        result := f_savitzky_golay(src, len)
+    else if engine == "Hamming Window"
+        result := f_hamming(src, len)
+    else if engine == "Hann Window"
+        result := f_hann(src, len)
+    else if engine == "Blackman Window"
+        result := f_blackman(src, len)
+    else if engine == "LSMA"
+        result := f_lsma(src, len)
+    else if engine == "Polynomial Regression"
+        result := f_poly_reg(src, len)
+    else if engine == "Median Filter"
+        result := f_median(src, len)
+    else if engine == "Trimmed Mean"
+        result := f_trimmed_mean(src, len)
+    else if engine == "Geometric Mean"
+        result := f_geometric_mean(src, len)
+    else if engine == "Harmonic Mean"
+        result := f_harmonic_mean(src, len)
+    else if engine == "Quadratic Weighted"
+        result := f_quadratic(src, len)
+    else if engine == "Cubic Weighted"
+        result := f_cubic(src, len)
+    else if engine == "VWMA"
+        result := ta.vwma(src, len)
+    else if engine == "VWAP"
+        result := f_vwap(len)
+    else if engine == "Money Flow Weighted"
+        result := f_money_flow(src, len)
+    else if engine == "Tick Volume Weighted"
+        result := f_tick_volume(src, len)
+    else if engine == "Accumulation/Distribution"
+        result := f_accumulation_dist(src, len)
+    else if engine == "ATR-Scaled"
+        result := f_atr_adaptive(src, len)
+    else if engine == "Volatility-Modulated"
+        result := f_volatility_modulated(src, len)
+    else if engine == "Efficiency Ratio"
+        result := f_efficiency_ratio(src, len)
+    else if engine == "Shannon Entropy"
+        result := f_entropy_adaptive(src, len)
+    else if engine == "Fractal Dimension"
+        result := f_fractal_adaptive(src, len)
+    else if engine == "Cycle Period"
+        result := f_cycle_period(src, len)
+    else if engine == "RSI-Modulated"
+        result := f_rsi_modulated(src, len)
+    else if engine == "MACD-Modulated"
+        result := f_macd_modulated(src, len)
+    else if engine == "Stochastic-Modulated"
+        result := f_stoch_modulated(src, len)
+    else if engine == "ADX-Modulated"
+        result := f_adx_modulated(src, len)
+    else if engine == "DAFE Flux Reactor"
+        result := f_dafe_flux(src, len)
+    else if engine == "DAFE Tensor Cloud"
+        result := f_dafe_tensor(len)
+    else if engine == "DAFE Quantum Step"
+        result := f_dafe_quantum(src, len)
+    else if engine == "DAFE Spectral Filter"
+        result := f_dafe_spectral(src, len)
+    else if engine == "DAFE Gravity Well"
+        result := f_dafe_gravity(src, len)
+    else if engine == "DAFE Phase-Zero"
+        result := f_dafe_phase_zero(src, len)
+    else if engine == "DAFE Entropy Engine"
+        result := f_dafe_entropy(src, len)
+    else if engine == "DAFE Fractal Engine"
+        result := f_dafe_fractal(src, len)
+    else if engine == "DAFE Neural Proxy"
+        result := f_dafe_neural(src, len)
+    else if engine == "DAFE Hybrid Neuro"
+        result := f_dafe_hybrid_neuro(src, len)
+    else if engine == "DAFE Kalman Predictive"
+        result := f_dafe_kalman_predictive(src, len)
+    else if engine == "DAFE Consensus"
+        result := f_dafe_consensus(src, len)
+    else if engine == "DAFE Ultimate Fusion"
+        result := f_dafe_ultimate(src, len)
+    else
+        result := f_donchian(len)
+    result
+// ═══════════════════════════════════════════════════════════════════════════════
+// CALCULATE ICHIMOKU COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+tenkan = calc_line(i_tenkan, i_engine)
+kijun = calc_line(i_kijun, i_engine)
+senkou_a = (tenkan + kijun) / 2
+senkou_b = calc_line(i_senkou, i_engine)
+chikou = close
+float tenkan2 = na, float kijun2 = na, float senkou_a2 = na, float senkou_b2 = na
+float tenkan3 = na, float kijun3 = na, float senkou_a3 = na, float senkou_b3 = na
+if i_mode == "Multi-Cloud (2 Layers)" or i_mode == "Multi-Cloud (3 Layers)"
+    t2_len = int(i_tenkan * i_second_cloud_mult)
+    k2_len = int(i_kijun * i_second_cloud_mult)
+    s2_len = int(i_senkou * i_second_cloud_mult)
+    tenkan2 := calc_line(t2_len, i_engine)
+    kijun2 := calc_line(k2_len, i_engine)
+    senkou_a2 := (tenkan2 + kijun2) / 2
+    senkou_b2 := calc_line(s2_len, i_engine)
+if i_mode == "Multi-Cloud (3 Layers)"
+    t3_len = int(i_tenkan * i_third_cloud_mult)
+    k3_len = int(i_kijun * i_third_cloud_mult)
+    s3_len = int(i_senkou * i_third_cloud_mult)
+    tenkan3 := calc_line(t3_len, i_engine)
+    kijun3 := calc_line(k3_len, i_engine)
+    senkou_a3 := (tenkan3 + kijun3) / 2
+    senkou_b3 := calc_line(s3_len, i_engine)
+atr_value = ta.atr(i_atr_period)
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGNAL LOGIC
+// ═══════════════════════════════════════════════════════════════════════════════
+cloud_top = math.max(senkou_a[i_displacement], senkou_b[i_displacement])
+cloud_bottom = math.min(senkou_a[i_displacement], senkou_b[i_displacement])
+price_above_cloud = close > cloud_top
+price_below_cloud = close < cloud_bottom
+price_in_cloud = not price_above_cloud and not price_below_cloud
+future_bull = senkou_a > senkou_b
+cloud_twist = ta.crossover(senkou_a, senkou_b) or ta.crossunder(senkou_a, senkou_b)
+tk_cross_bull = ta.crossover(tenkan, kijun)
+tk_cross_bear = ta.crossunder(tenkan, kijun)
+price_cross_bull = ta.crossover(close, kijun)
+price_cross_bear = ta.crossunder(close, kijun)
+kumo_break_bull = ta.crossover(close, cloud_top)
+kumo_break_bear = ta.crossunder(close, cloud_bottom)
+chikou_clear_bull = close > high[i_displacement]
+chikou_clear_bear = close < low[i_displacement]
+perfect_bull = price_above_cloud and cloud_top > tenkan and tenkan > kijun
+perfect_bear = price_below_cloud and cloud_bottom < tenkan and tenkan < kijun
+bool buy_signal = false
+bool sell_signal = false
+if i_signal_mode == "TK Cross"
+    buy_signal := tk_cross_bull
+    sell_signal := tk_cross_bear
+else if i_signal_mode == "Price x Kijun"
+    buy_signal := price_cross_bull
+    sell_signal := price_cross_bear
+else if i_signal_mode == "Kumo Breakout"
+    buy_signal := kumo_break_bull
+    sell_signal := kumo_break_bear
+else if i_signal_mode == "TK + Kumo"
+    buy_signal := tk_cross_bull and price_above_cloud
+    sell_signal := tk_cross_bear and price_below_cloud
+else if i_signal_mode == "Perfect Order"
+    buy_signal := perfect_bull and tk_cross_bull
+    sell_signal := perfect_bear and tk_cross_bear
+else if i_signal_mode == "Chikou Confirm"
+    buy_signal := tk_cross_bull and chikou_clear_bull
+    sell_signal := tk_cross_bear and chikou_clear_bear
+else if i_signal_mode == "Triple Confirm"
+    buy_signal := tk_cross_bull and price_above_cloud and chikou_clear_bull
+    sell_signal := tk_cross_bear and price_below_cloud and chikou_clear_bear
+else if i_signal_mode == "Cloud Twist"
+    buy_signal := cloud_twist and future_bull
+    sell_signal := cloud_twist and not future_bull
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGNAL FILTERS
+// ═══════════════════════════════════════════════════════════════════════════════
+bool filter_pass = true
+if i_enable_filters
+    if i_filter_volume
+        vol_avg = ta.sma(volume, 20)
+        if volume < vol_avg * i_vol_threshold
+            filter_pass := false
+    if i_filter_atr
+        atr = ta.atr(14)
+        atr_avg = ta.sma(atr, 50)
+        if atr < atr_avg * i_atr_min
+            filter_pass := false
+    if i_filter_adx
+        [_, _, adx] = ta.dmi(14, 14)
+        if adx < i_adx_threshold
+            filter_pass := false
+    var int bars_since_sig = 999
+    if buy_signal or sell_signal
+        if bars_since_sig < i_filter_time
+            filter_pass := false
+        else
+            bars_since_sig := 0
+    bars_since_sig += 1
+buy_signal := buy_signal and filter_pass
+sell_signal := sell_signal and filter_pass
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERFORMANCE TRACKING
+// ═══════════════════════════════════════════════════════════════════════════════
+var TradeStats stats = TradeStats.new()
+stats.current_equity := i_capital
+var float current_sl = na
+var float current_tp1 = na
+var float current_tp2 = na
+var float current_tp3 = na
+if i_perf_enable
+    if stats.in_trade
+        if stats.direction == 1 
+            if not stats.tp1_hit and high >= stats.tp1_price
+                stats.tp1_hit := true
+                stats.tp1_count += 1
+            if not stats.tp2_hit and high >= stats.tp2_price
+                stats.tp2_hit := true
+                stats.tp2_count += 1
+            if not stats.tp3_hit and high >= stats.tp3_price
+                stats.tp3_hit := true
+                stats.tp3_count += 1
+        else  
+            if not stats.tp1_hit and low <= stats.tp1_price
+                stats.tp1_hit := true
+                stats.tp1_count += 1
+            if not stats.tp2_hit and low <= stats.tp2_price
+                stats.tp2_hit := true
+                stats.tp2_count += 1
+            if not stats.tp3_hit and low <= stats.tp3_price
+                stats.tp3_hit := true
+                stats.tp3_count += 1
+        bool sl_hit = false
+        bool exit_signal = false
+        if stats.direction == 1
+            sl_hit := low <= stats.sl_price
+            exit_signal := sell_signal or tk_cross_bear or stats.tp3_hit
+        else
+            sl_hit := high >= stats.sl_price
+            exit_signal := buy_signal or tk_cross_bull or stats.tp3_hit
+        if sl_hit or exit_signal
+            float exit_price = 0.0
+            if sl_hit
+                exit_price := stats.sl_price
+            else if stats.tp3_hit
+                exit_price := stats.tp3_price
+            else
+                exit_price := close
+            pnl_pct = stats.direction == 1 ? 
+                 (exit_price - stats.entry_price) / stats.entry_price : 
+                 (stats.entry_price - exit_price) / stats.entry_price
+            position_value = stats.current_equity * (i_position_size / 100)
+            gross_pnl = position_value * pnl_pct
+            comm = position_value * (i_commission / 100) * 2
+            net_pnl = gross_pnl - comm
+            stats.total_pnl += net_pnl
+            stats.current_equity += net_pnl
+            stats.trades += 1
+            if net_pnl > 0
+                stats.wins += 1
+                stats.win_pnl += net_pnl
+            else
+                stats.losses += 1
+                stats.loss_pnl += math.abs(net_pnl)
+            stats.peak_equity := math.max(stats.peak_equity, stats.current_equity)
+            dd = (stats.peak_equity - stats.current_equity) / stats.peak_equity * 100
+            stats.max_dd := math.max(stats.max_dd, dd)
+            stats.in_trade := false
+            current_sl := na
+            current_tp1 := na
+            current_tp2 := na
+            current_tp3 := na
+    if not stats.in_trade
+        if buy_signal
+            stats.in_trade := true
+            stats.direction := 1
+            stats.entry_price := close
+            stats.entry_atr := atr_value
+            stats.sl_price := close - (atr_value * i_sl_atr_mult)
+            stats.tp1_price := close + (atr_value * i_tp1_atr_mult)
+            stats.tp2_price := close + (atr_value * i_tp2_atr_mult)
+            stats.tp3_price := close + (atr_value * i_tp3_atr_mult)
+            stats.tp1_hit := false
+            stats.tp2_hit := false
+            stats.tp3_hit := false
+            current_sl := stats.sl_price
+            current_tp1 := stats.tp1_price
+            current_tp2 := stats.tp2_price
+            current_tp3 := stats.tp3_price
+        if sell_signal
+            stats.in_trade := true
+            stats.direction := -1
+            stats.entry_price := close
+            stats.entry_atr := atr_value
+            stats.sl_price := close + (atr_value * i_sl_atr_mult)
+            stats.tp1_price := close - (atr_value * i_tp1_atr_mult)
+            stats.tp2_price := close - (atr_value * i_tp2_atr_mult)
+            stats.tp3_price := close - (atr_value * i_tp3_atr_mult)
+            stats.tp1_hit := false
+            stats.tp2_hit := false
+            stats.tp3_hit := false
+            current_sl := stats.sl_price
+            current_tp1 := stats.tp1_price
+            current_tp2 := stats.tp2_price
+            current_tp3 := stats.tp3_price
+// ═══════════════════════════════════════════════════════════════════════════════
+// VISUALIZATION 
+// ═══════════════════════════════════════════════════════════════════════════════
+bool is_bull_cloud = senkou_a >= senkou_b
+show_tenkan_line = i_tenkan_show and i_mode != "Kumo Only" and i_mode != "Minimal"
+show_kijun_line = i_kijun_show and i_mode != "Kumo Only" and i_mode != "Minimal"
+show_chikou_line = i_chikou_show and i_mode == "Full Ichimoku"
+show_cloud = i_cloud_style != "None"
+// ─────────────────────────────────────────────────────────────────────────────
+// TENKAN & KIJUN LINES 
+// ─────────────────────────────────────────────────────────────────────────────
+plot(show_tenkan_line ? tenkan : na, "Tenkan-sen", i_tenkan_color, i_line_width)
+plot(show_tenkan_line and i_glow_effect ? tenkan : na, "Tenkan Glow", color.new(i_tenkan_color, 70), i_line_width + 3)
+plot(show_kijun_line ? kijun : na, "Kijun-sen", i_kijun_color, i_line_width)
+plot(show_kijun_line and i_glow_effect ? kijun : na, "Kijun Glow", color.new(i_kijun_color, 70), i_line_width + 3)
+plot(show_chikou_line ? chikou : na, "Chikou Span", i_chikou_color, 1, offset=-i_displacement)
+// ─────────────────────────────────────────────────────────────────────────────
+// CLOUD PLOTTING
+// ─────────────────────────────────────────────────────────────────────────────
+float plot_span_a = show_cloud ? senkou_a : na
+float plot_span_b = show_cloud ? senkou_b : na
+float cloud_25 = senkou_b + (senkou_a - senkou_b) * 0.25
+float cloud_50 = senkou_b + (senkou_a - senkou_b) * 0.5
+float cloud_75 = senkou_b + (senkou_a - senkou_b) * 0.75
+color cloud_bull_main = color.new(i_bull_cloud, i_cloud_brightness)
+color cloud_bear_main = color.new(i_bear_cloud, i_cloud_brightness)
+color cloud_bull_edge = color.new(i_bull_cloud, i_cloud_brightness - 15)
+color cloud_bear_edge = color.new(i_bear_cloud, i_cloud_brightness - 15)
+color cloud_bull_inner = color.new(i_bull_cloud, i_cloud_brightness + 8)
+color cloud_bear_inner = color.new(i_bear_cloud, i_cloud_brightness + 8)
+bool is_solid = i_cloud_style == "Solid Fill"
+p_solid_a = plot(show_cloud and is_solid ? senkou_a : na, "Cloud A", color=na, offset=i_displacement, display=display.none)
+p_solid_b = plot(show_cloud and is_solid ? senkou_b : na, "Cloud B", color=na, offset=i_displacement, display=display.none)
+fill(p_solid_a, p_solid_b, is_bull_cloud ? cloud_bull_main : cloud_bear_main, "Solid Cloud")
+bool is_gradient = i_cloud_style == "Gradient Fill"
+p_grad_a = plot(show_cloud and is_gradient ? senkou_a : na, "Grad A", color=na, offset=i_displacement, display=display.none)
+p_grad_75 = plot(show_cloud and is_gradient ? cloud_75 : na, "Grad 75", color=na, offset=i_displacement, display=display.none)
+p_grad_50 = plot(show_cloud and is_gradient ? cloud_50 : na, "Grad 50", color=na, offset=i_displacement, display=display.none)
+p_grad_25 = plot(show_cloud and is_gradient ? cloud_25 : na, "Grad 25", color=na, offset=i_displacement, display=display.none)
+p_grad_b = plot(show_cloud and is_gradient ? senkou_b : na, "Grad B", color=na, offset=i_displacement, display=display.none)
+fill(p_grad_a, p_grad_75, is_gradient ? (is_bull_cloud ? cloud_bull_edge : cloud_bear_edge) : na, "Grad Layer 1")
+fill(p_grad_75, p_grad_50, is_gradient ? (is_bull_cloud ? cloud_bull_inner : cloud_bear_inner) : na, "Grad Layer 2")
+fill(p_grad_50, p_grad_25, is_gradient ? (is_bull_cloud ? cloud_bull_inner : cloud_bear_inner) : na, "Grad Layer 3")
+fill(p_grad_25, p_grad_b, is_gradient ? (is_bull_cloud ? cloud_bull_edge : cloud_bear_edge) : na, "Grad Layer 4")
+bool is_outline = i_cloud_style == "Outline Only"
+plot(show_cloud and is_outline ? senkou_a : na, "Outline A", is_bull_cloud ? color.new(i_bull_cloud, 30) : color.new(i_bear_cloud, 30), 2, offset=i_displacement)
+plot(show_cloud and is_outline ? senkou_b : na, "Outline B", is_bull_cloud ? color.new(i_bull_cloud, 30) : color.new(i_bear_cloud, 30), 2, offset=i_displacement)
+plot(show_cloud and is_outline ? cloud_50 : na, "Outline Mid", is_bull_cloud ? color.new(i_bull_cloud, 70) : color.new(i_bear_cloud, 70), 1, plot.style_circles, offset=i_displacement)
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-CLOUD
+// ─────────────────────────────────────────────────────────────────────────────
+show_cloud2 = (i_mode == "Multi-Cloud (2 Layers)" or i_mode == "Multi-Cloud (3 Layers)") and show_cloud and not is_outline
+show_cloud3 = i_mode == "Multi-Cloud (3 Layers)" and show_cloud and not is_outline
+bool is_bull_cloud2 = not na(senkou_a2) and senkou_a2 >= senkou_b2
+bool is_bull_cloud3 = not na(senkou_a3) and senkou_a3 >= senkou_b3
+p_mc2_a = plot(show_cloud2 ? senkou_a2 : na, "MC2 A", color=na, offset=i_displacement, display=display.none)
+p_mc2_b = plot(show_cloud2 ? senkou_b2 : na, "MC2 B", color=na, offset=i_displacement, display=display.none)
+fill(p_mc2_a, p_mc2_b, show_cloud2 ? (is_bull_cloud2 ? color.new(i_bull_cloud, 90) : color.new(i_bear_cloud, 90)) : na, "Multi Cloud 2")
+p_mc3_a = plot(show_cloud3 ? senkou_a3 : na, "MC3 A", color=na, offset=i_displacement, display=display.none)
+p_mc3_b = plot(show_cloud3 ? senkou_b3 : na, "MC3 B", color=na, offset=i_displacement, display=display.none)
+fill(p_mc3_a, p_mc3_b, show_cloud3 ? (is_bull_cloud3 ? color.new(i_bull_cloud, 93) : color.new(i_bear_cloud, 93)) : na, "Multi Cloud 3")
+// ─────────────────────────────────────────────────────────────────────────────
+// SL/TP LINES 
+// ─────────────────────────────────────────────────────────────────────────────
+plot(i_perf_enable and i_show_sl_tp and stats.in_trade ? current_sl : na, "Stop Loss", color.new(color.red, 30), 2, plot.style_linebr)
+plot(i_perf_enable and i_show_sl_tp and stats.in_trade ? current_tp1 : na, "TP1", color.new(color.green, 50), 1, plot.style_linebr)
+plot(i_perf_enable and i_show_sl_tp and stats.in_trade ? current_tp2 : na, "TP2", color.new(color.green, 30), 1, plot.style_linebr)
+plot(i_perf_enable and i_show_sl_tp and stats.in_trade ? current_tp3 : na, "TP3", color.new(color.lime, 20), 2, plot.style_linebr)
+// ─────────────────────────────────────────────────────────────────────────────
+// SIGNAL SHAPES 
+// ─────────────────────────────────────────────────────────────────────────────
+plotshape(i_show_signals and buy_signal, "Buy Signal", shape.labelup, location.belowbar,color.new(#26A69A, 0), text="▲ LONG", textcolor=color.white, size=size.tiny)
+plotshape(i_show_signals and sell_signal, "Sell Signal", shape.labeldown, location.abovebar,color.new(#EF5350, 0), text="▼ SHORT", textcolor=color.white, size=size.tiny)
+plotshape(show_cloud and cloud_twist, "Cloud Twist", shape.diamond, location.absolute,color.new(color.yellow, 0), size=size.tiny)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKGROUND ZONES
+// ─────────────────────────────────────────────────────────────────────────────
+color bg_zone = na
+if i_show_zones
+    if price_above_cloud
+        bg_zone := color.new(#26A69A, 95)
+    else if price_below_cloud
+        bg_zone := color.new(#EF5350, 95)
+    else if price_in_cloud
+        bg_zone := color.new(color.gray, 97)
+bgcolor(bg_zone, title="Price Zone")
+// ═══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+tenkan_slope = tenkan - tenkan[1]
+kijun_slope = kijun - kijun[1]
+cloud_thickness = math.abs(senkou_a - senkou_b)
+cloud_thickness_pct = close != 0 ? (cloud_thickness / close) * 100 : 0
+dist_from_cloud = price_above_cloud ? close - cloud_top : price_below_cloud ? close - cloud_bottom : 0
+dist_from_cloud_pct = close != 0 ? (dist_from_cloud / close) * 100 : 0
+tk_spread = tenkan - kijun
+tk_spread_pct = kijun != 0 ? (tk_spread / kijun) * 100 : 0
+momentum_score = 50.0
+if price_above_cloud
+    momentum_score += 15
+if price_below_cloud
+    momentum_score -= 15
+if tenkan > kijun
+    momentum_score += 15
+if tenkan < kijun
+    momentum_score -= 15
+if future_bull
+    momentum_score += 10
+if not future_bull
+    momentum_score -= 10
+if chikou_clear_bull
+    momentum_score += 10
+if chikou_clear_bear
+    momentum_score -= 10
+momentum_score := math.max(0, math.min(100, momentum_score))
+signal_strength = 0
+if price_above_cloud
+    signal_strength += 1
+if tenkan > kijun
+    signal_strength += 1
+if future_bull
+    signal_strength += 1
+if chikou_clear_bull
+    signal_strength += 1
+if price_below_cloud
+    signal_strength -= 1
+if tenkan < kijun
+    signal_strength -= 1
+if not future_bull
+    signal_strength -= 1
+if chikou_clear_bear
+    signal_strength -= 1
+var int bars_since_signal = 0
+if buy_signal or sell_signal
+    bars_since_signal := 0
+else
+    bars_since_signal += 1
+vol_avg = ta.sma(volume, 20)
+vol_ratio = vol_avg > 0 ? volume / vol_avg : 1.0
+atr_avg = ta.sma(atr_value, 50)
+atr_ratio = atr_avg > 0 ? atr_value / atr_avg : 1.0
+[diplus, diminus, adx_val] = ta.dmi(14, 14)
+vol_filter_pass = not i_filter_volume or volume >= vol_avg * i_vol_threshold
+atr_filter_pass = not i_filter_atr or atr_value >= atr_avg * i_atr_min
+adx_filter_pass = not i_filter_adx or adx_val >= i_adx_threshold
+time_filter_pass = bars_since_signal >= i_filter_time
+tp1_pct = stats.trades > 0 ? (stats.tp1_count / stats.trades) * 100 : 0.0
+tp2_pct = stats.trades > 0 ? (stats.tp2_count / stats.trades) * 100 : 0.0
+tp3_pct = stats.trades > 0 ? (stats.tp3_count / stats.trades) * 100 : 0.0
+if i_dash_enable
+    dash_pos = switch i_dash_position
+        "Top Right" => position.top_right
+        "Top Left" => position.top_left
+        "Bottom Right" => position.bottom_right
+        "Bottom Left" => position.bottom_left
+        => position.top_right
+    text_sz = switch i_dash_size
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        => size.small
+    var table dash = table.new(dash_pos, 2, 45, border_width=1, border_color=color.new(color.gray, 50), bgcolor=color.new(color.black, 85))
+    if barstate.islast
+        table.clear(dash, 0, 0, 1, 44)
+        row = 0
+        table.cell(dash, 0, row, "╔═══ ICHIMOKU LAB ═══╗", text_color=color.new(#00E5FF, 0), text_size=text_sz, bgcolor=color.new(#1A237E, 60))
+        table.merge_cells(dash, 0, row, 1, row)
+        row += 1
+        engine_short = str.replace(i_engine, "DAFE ", "⚡")
+        table.cell(dash, 0, row, "Engine:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, engine_short, text_color=color.white, text_size=text_sz)
+        row += 1
+        table.cell(dash, 0, row, "Periods:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, str.tostring(i_tenkan) + "/" + str.tostring(i_kijun) + "/" + str.tostring(i_senkou), text_color=color.yellow, text_size=text_sz)
+        row += 1
+        table.cell(dash, 0, row, "╔══ CLOUD STATUS ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.teal, 60))
+        table.merge_cells(dash, 0, row, 1, row)
+        row += 1
+        loc_txt = price_above_cloud ? "▲ ABOVE" : price_below_cloud ? "▼ BELOW" : "● INSIDE"
+        loc_col = price_above_cloud ? color.green : price_below_cloud ? color.red : color.orange
+        table.cell(dash, 0, row, "Price:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, loc_txt, text_color=loc_col, text_size=text_sz)
+        row += 1
+        tk_txt = tenkan > kijun ? "▲ BULL" : tenkan < kijun ? "▼ BEAR" : "○ FLAT"
+        tk_col = tenkan > kijun ? color.green : tenkan < kijun ? color.red : color.gray
+        table.cell(dash, 0, row, "TK Cross:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, tk_txt, text_color=tk_col, text_size=text_sz)
+        row += 1
+        future_txt = future_bull ? "▲ BULLISH" : "▼ BEARISH"
+        future_col = future_bull ? color.green : color.red
+        table.cell(dash, 0, row, "Future:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, future_txt, text_color=future_col, text_size=text_sz)
+        row += 1
+        twist_txt = cloud_twist ? "⚠️ TWIST!" : "None"
+        twist_col = cloud_twist ? color.orange : color.gray
+        table.cell(dash, 0, row, "Twist:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, twist_txt, text_color=twist_col, text_size=text_sz)
+        row += 1
+        table.cell(dash, 0, row, "╔══ SIGNALS ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.purple, 60))
+        table.merge_cells(dash, 0, row, 1, row)
+        row += 1
+        table.cell(dash, 0, row, "Logic:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, i_signal_mode, text_color=color.aqua, text_size=text_sz)
+        row += 1
+        mom_col = momentum_score > 65 ? color.green : momentum_score > 35 ? color.yellow : color.red
+        table.cell(dash, 0, row, "Momentum:", text_color=color.gray, text_size=text_sz)
+        table.cell(dash, 1, row, str.tostring(momentum_score, "#") + "%", text_color=mom_col, text_size=text_sz)
+        row += 1
+        if i_enable_filters
+            table.cell(dash, 0, row, "╔══ FILTERS ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.blue, 60))
+            table.merge_cells(dash, 0, row, 1, row)
+            row += 1
+            all_filters_pass = vol_filter_pass and atr_filter_pass and adx_filter_pass and time_filter_pass
+            all_status = all_filters_pass ? "✓ CLEAR" : "✗ BLOCKED"
+            all_col = all_filters_pass ? color.green : color.red
+            table.cell(dash, 0, row, "Status:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, all_status, text_color=all_col, text_size=text_sz)
+            row += 1
+        if i_perf_enable
+            table.cell(dash, 0, row, "╔══ PERFORMANCE ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.orange, 60))
+            table.merge_cells(dash, 0, row, 1, row)
+            row += 1
+            table.cell(dash, 0, row, "Trades:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(stats.trades) + " (" + str.tostring(stats.wins) + "W/" + str.tostring(stats.losses) + "L)", text_color=color.white, text_size=text_sz)
+            row += 1
+            win_rate = stats.trades > 0 ? stats.wins / stats.trades * 100 : 0
+            wr_col = win_rate > 55 ? color.green : win_rate > 45 ? color.yellow : color.red
+            table.cell(dash, 0, row, "Win Rate:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(win_rate, "#.1") + "%", text_color=wr_col, text_size=text_sz)
+            row += 1
+            pf = stats.loss_pnl > 0 ? stats.win_pnl / stats.loss_pnl : stats.win_pnl > 0 ? 999 : 0
+            pf_display = pf > 99 ? ">99" : str.tostring(pf, "#.##")
+            pf_col = pf > 1.5 ? color.green : pf > 1.0 ? color.yellow : color.red
+            table.cell(dash, 0, row, "Profit Factor:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, pf_display, text_color=pf_col, text_size=text_sz)
+            row += 1
+            pnl_col = stats.total_pnl > 0 ? color.green : color.red
+            pnl_pct = stats.total_pnl / i_capital * 100
+            table.cell(dash, 0, row, "Net P&L:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, "$" + str.tostring(stats.total_pnl, "#.##") + " (" + str.tostring(pnl_pct, "#.#") + "%)", text_color=pnl_col, text_size=text_sz)
+            row += 1
+            dd_col = stats.max_dd > 20 ? color.red : stats.max_dd > 10 ? color.orange : color.green
+            table.cell(dash, 0, row, "Max DD:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(stats.max_dd, "#.1") + "%", text_color=dd_col, text_size=text_sz)
+            row += 1
+            table.cell(dash, 0, row, "╔══ SL/TP (ATR) ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.maroon, 60))
+            table.merge_cells(dash, 0, row, 1, row)
+            row += 1
+            table.cell(dash, 0, row, "Stop Loss:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(i_sl_atr_mult, "#.#") + "× ATR", text_color=color.red, text_size=text_sz)
+            row += 1
+            table.cell(dash, 0, row, "TP1:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(i_tp1_atr_mult, "#.#") + "× ATR", text_color=color.green, text_size=text_sz)
+            row += 1
+            table.cell(dash, 0, row, "TP2:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(i_tp2_atr_mult, "#.#") + "× ATR", text_color=color.green, text_size=text_sz)
+            row += 1
+            table.cell(dash, 0, row, "TP3:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(i_tp3_atr_mult, "#.#") + "× ATR", text_color=color.lime, text_size=text_sz)
+            row += 1
+            table.cell(dash, 0, row, "╔══ TP HIT RATES ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.green, 60))
+            table.merge_cells(dash, 0, row, 1, row)
+            row += 1
+            tp1_col = tp1_pct > 60 ? color.green : tp1_pct > 40 ? color.yellow : color.red
+            table.cell(dash, 0, row, "TP1 Hit:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(stats.tp1_count) + " (" + str.tostring(tp1_pct, "#.1") + "%)", text_color=tp1_col, text_size=text_sz)
+            row += 1
+            tp2_col = tp2_pct > 50 ? color.green : tp2_pct > 30 ? color.yellow : color.red
+            table.cell(dash, 0, row, "TP2 Hit:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(stats.tp2_count) + " (" + str.tostring(tp2_pct, "#.1") + "%)", text_color=tp2_col, text_size=text_sz)
+            row += 1
+            tp3_col = tp3_pct > 40 ? color.green : tp3_pct > 20 ? color.yellow : color.red
+            table.cell(dash, 0, row, "TP3 Hit:", text_color=color.gray, text_size=text_sz)
+            table.cell(dash, 1, row, str.tostring(stats.tp3_count) + " (" + str.tostring(tp3_pct, "#.1") + "%)", text_color=tp3_col, text_size=text_sz)
+            row += 1
+            if stats.in_trade
+                table.cell(dash, 0, row, "╔══ POSITION ══╗", text_color=color.white, text_size=text_sz, bgcolor=color.new(color.navy, 60))
+                table.merge_cells(dash, 0, row, 1, row)
+                row += 1
+                pos_txt = stats.direction == 1 ? "🟢 LONG" : "🔴 SHORT"
+                unrealized = stats.direction == 1 ? 
+                     (close - stats.entry_price) / stats.entry_price * 100 : 
+                     (stats.entry_price - close) / stats.entry_price * 100
+                unreal_col = unrealized > 0 ? color.green : color.red
+                table.cell(dash, 0, row, "Position:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, pos_txt + " " + str.tostring(unrealized, "#.##") + "%", text_color=unreal_col, text_size=text_sz)
+                row += 1
+                table.cell(dash, 0, row, "Entry:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, str.tostring(stats.entry_price, "#.##"), text_color=color.white, text_size=text_sz)
+                row += 1
+                table.cell(dash, 0, row, "SL:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, str.tostring(stats.sl_price, "#.##"), text_color=color.red, text_size=text_sz)
+                row += 1               
+                tp1_status = stats.tp1_hit ? "✓ HIT" : str.tostring(stats.tp1_price, "#.##")
+                tp1_stat_col = stats.tp1_hit ? color.lime : color.green
+                table.cell(dash, 0, row, "TP1:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, tp1_status, text_color=tp1_stat_col, text_size=text_sz)
+                row += 1                
+                tp2_status = stats.tp2_hit ? "✓ HIT" : str.tostring(stats.tp2_price, "#.##")
+                tp2_stat_col = stats.tp2_hit ? color.lime : color.green
+                table.cell(dash, 0, row, "TP2:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, tp2_status, text_color=tp2_stat_col, text_size=text_sz)
+                row += 1
+                tp3_status = stats.tp3_hit ? "✓ HIT" : str.tostring(stats.tp3_price, "#.##")
+                tp3_stat_col = stats.tp3_hit ? color.lime : color.green
+                table.cell(dash, 0, row, "TP3:", text_color=color.gray, text_size=text_sz)
+                table.cell(dash, 1, row, tp3_status, text_color=tp3_stat_col, text_size=text_sz)
+                row += 1
+        table.cell(dash, 0, row, "⚡ DAFE Trading ⚡", text_color=color.new(color.purple, 20), text_size=size.tiny)
+        table.merge_cells(dash, 0, row, 1, row)
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
+alertcondition(buy_signal, "Ichimoku Buy", "☁️ Ichimoku Lab: BUY signal on {{ticker}} {{interval}}")
+alertcondition(sell_signal, "Ichimoku Sell", "☁️ Ichimoku Lab: SELL signal on {{ticker}} {{interval}}")
+alertcondition(tk_cross_bull, "TK Cross Bull", "☁️ Ichimoku Lab: Tenkan crossed above Kijun on {{ticker}}")
+alertcondition(tk_cross_bear, "TK Cross Bear", "☁️ Ichimoku Lab: Tenkan crossed below Kijun on {{ticker}}")
+alertcondition(kumo_break_bull, "Kumo Break Bull", "☁️ Ichimoku Lab: Price broke above cloud on {{ticker}}")
+alertcondition(kumo_break_bear, "Kumo Break Bear", "☁️ Ichimoku Lab: Price broke below cloud on {{ticker}}")
+alertcondition(cloud_twist, "Cloud Twist", "☁️ Ichimoku Lab: Future cloud twist detected on {{ticker}}")
